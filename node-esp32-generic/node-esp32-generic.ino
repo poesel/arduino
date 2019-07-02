@@ -1,79 +1,21 @@
-//Version 1.01 Spannungs Messung und Deep Sleep
-//Version 1.02 MQTT Anbindung
-//Version 1.03 Temperatur Meßung
-//Version 1.03 Anpassen des Wertes #define MAXBUFFERSIZE (1024) in Adafruit_MQTT.h, im Ordner libraries/Adafruit_MQTT_Library/Adafruit_MQTT.h
-//Version 1.04 WiFiClient clientMQTT anstatt client
-//Version 1.05 Add to ESP.deepSleep  WAKE_RF_DEFAULT
-//Version 1.06 Grundzüge GSM integriert
-//Version 1.01 basiert auf Waage 1.06 mit ESP8266 - ab hier Versuch mit Wemos D1 mini Board.
-//Version 1.02 Transmit String json_data in Abhängigkeit der #define Sensor Section.
-//Version 1.02 MQTT Topic auf -node3 geändert
-//Version 1.02 SerialAT.begin(115200) auf SerialAT.begin(57600) reduziert
-//Version 1.03 WUNDERGROUND ist noch nicht funktionsfähig siehe Funktion ..._weatheronly
-//Version 1.03 Funktion gsm_info() gibt Informationen zu Signal Qualität & Spannungsversorgung des GSM Moduls auf Console aus.
-//Version 1.04 GSM Modul per MOSFET & Daten Pin ein / ausschalten https://forum.arduino.cc/index.php?topic=383081.30 mittels P-Channel MOSFET
-//Version 1.04 Nicht im Einsatz
-//Version 1.05 2. China Modul - über Pin D3 initalisieren - ohne MOSFET - GSM Power on/off umgeschrieben
-//VERSION 1.05 läuft mit beiden Modulen - versuch sleepEnable zu nutzen
-//Version 1.06 Funktionen sleepEnable & sleepoff in gsm_SleepMode2On & gsm_SleepMode2Off umbenannt
-//Version 1.06 Funktion gsm_poweron wird aktuell nicht benötigt - wg. Sequenz behalten.
-//Version 1.07 separte Version hier nicht hinterlegt - Versuch der Telegramm Einbindung
-//Version 1.08 Sleep Dauer abhängig vom Ladezustand des Akkus
-//Version 1.08 ToDo:Sleep Timer Abhängig von Wifi / GSM machen oder andere Adressbereich für Ablage der Daten
-//Version 1.08 Anpassen des Wertes #define MAXBUFFERSIZE (2048) in Adafruit_MQTT.h, im Ordner libraries/Adafruit_MQTT_Library/Adafruit_MQTT.h
-//Version 1.09 Arduino 1.8.7 (evtl. war vorher 1.8.5, bin mir aber nicht mehr sicher)
-//Version 1.09 #define DS18B20_PIN D2 auf D5 geändert 
-//Version 1.09 DS18820 Adressen auf 28FFCFBDA4160446 korrigiert - Identifikation mit oneWireSearch.ino
-//Version 1.14 Version 1.10-1.13 verworfen und auf Basis 1.09 aufgesetzt.
-//Version 1.14 OTA Teil entfernt - Test 0k 15:27
-//Version 1.14 HX711 Messung  / Gewicht integriert Test 0k 15:38 + 16:15
-//Version 1.15 Quelle Code zum debugging Abschnittweise zusammengesetzt
-//Version 1.15 MQTT_Test_wg_HX711_V1.1 - V1.1f sind die einzel Schritte dahin
-//Version 1.15 u.a. Setup & Haupteil vereinfacht - jetzt DeepSleep in Main Loop aufgerufen, fürher separater Codezweig in SetupPfad
-//Version 1.15 Code passt zu Fritzing Bienenwaage 4.2 5V CN3064.fzz
-//Version 1.15 Kalibrierung mit Sketch "Kalibrierung f_r_Waage_3.0_Demos_" durchgeführt
-//Version 1.15 Aktuell nur ohne Sensor SD18B20 möglich da PIN für Waage benötigt wird
-//Version 1.15 Farbecode Anschlußkabel BOSCHE H40A
-/*
-+E Rot
-+A Grün
--E Schwarz
--A Weiß
-Shield Lila
-*/
-//Version 1.15 ToDo Test ob Jumper D8 möglich der nach dem Booten geschlossen wird.
-//Version 1.16 Zusätzlicher Sleep falls mqtt Connect nicht klappt - 27.04.19 im Test
-//Version 1.17 Zusätzlicher Sleep falls GSM oder GPRS Connect nicht klappt, zustäzlich stoppen des Modems bevor mqtt sleep der Version 1.16 bei fehlerhaften mqtt connect. -30.04.19 im Test
-//Version 1.18 Geschwindigkeit für SoftwareSerical von  57600  auf 9600 Baud gesenkt (Artikel gefunden der sagt, das es hier zu Problemen auf der TX/RX Leitung kommen kann)
-//Version 1.19 production für Einsatz - Arduino Version 1.8.7 / ESP Version 2.3.0 / SDK 1.5.3_16_04_18 / seit 30.05.2019
-//Version 1.19 Echtdaten werden an als node-2 geführt deshabl spielwiese/node-2/data.json, anstatt node-4 an den bisher zu testzwecken übermittelt wurde.
-//Version 1.20 Version um Tippfehler bereinigt und für Upload auf GitHub vorbereitet
-//Version 1.20 public - User / Login Credentials entfernt
+//Version 1.00 copy of generic-esp8266 as of version 1.20
+//Version 1.01 arduinojson 5 -> 6, TWOSCALES
 
-
-#define GSM_ENABLED             true    //Bei FALSE wird automatisch WIFI aktiviert
+#define GSM_ENABLED             true    //Bei FALSE wird automatisch WIFI aktiviert - not tested on esp32!
 #define WEIGHT                  true
+#define TWOSCALES               false
 #define SENSOR_DS18B20          false  // Aktuell ohne Funktion, da zu wenig PINS zwangsweise false da ich pin D5 für die Waage benötige
 #define SENSOR_BATTERY_LEVEL    false  // falls Spannungsmessung über Spannungsteiler erfolgen soll, wenn kein SIM800 Modul verwendet wird.
 #define DEEPSLEEP_ENABLED       true   // Code ist aktuell nur auf TRUE ausgelegt, falls False, muß noch im main() ein Delay eingebaut werden.
 #define SLEEP_TIMER             true   // SleepDauer abhängig vom Ladezustand, Sleep_Timer noch nicht mit Wifi verifziert.
 #define WUNDERGROUND            false  //funktionert aktuell nur mit GSM_ENABLED false
 
+#define TINY_GSM_MODEM_SIM800
 
 #if GSM_ENABLED
 
   #define WIFI_ACTIVE false
-  
-  #define TINY_GSM_MODEM_SIM800
-  #include <TinyGsmClient.h>
-  #include <SoftwareSerial.h>
-  SoftwareSerial SerialAT(D7, D6); // RX, TX
-  
-  const char apn[]  = "pinternet.interkom.de";  //Abhängig vom Netzprovider - ggfs.auf eigene Provider  anpassen.
-  const char user[] = "";                       //Abhängig vom Netzprovider - in Abhängigkeit vom Provider eintragen
-  const char pass[] = "";                       //Abhängig vom Netzprovider - in Abhängigkeit vom Provider eintragen
-  
-  int gsm_csq;
+  #include "gsm.h"
   
 #else
 
@@ -89,16 +31,25 @@ Shield Lila
 int volt_level;
 float voltage;
 
-#include <ESP8266WiFi.h>
-#include <ESP8266mDNS.h>
-#include <WiFiUdp.h>
-
-
-//Library for WifiManager
-#include <ESP8266WebServer.h>
-
 #if WIFI_ACTIVE
-  #include <WiFiManager.h>         //https://github.com/tzapu/WiFiManager
+
+  #if defined(ESP8266)
+
+    #include <ESP8266WiFi.h>
+    #include <ESP8266mDNS.h>
+    #include <WiFiUdp.h>
+    
+    //Library for WifiManager
+    #include <ESP8266WebServer.h>
+    #include <WiFiManager.h>         //https://github.com/tzapu/WiFiManager
+
+  #else   // ESP32
+  
+    #include <WiFi.h>
+    #include <DNSServer.h>
+
+  #endif
+      
 #endif
 
 #if SLEEP_TIMER
@@ -154,42 +105,42 @@ int sleepTimeS = 900;  // 15-Minuten SleepTimer als Startwert
 #define MQTT_TOPIC          "hiveeyes/xxxxxxxx-yyyy-xxxx-yyyy-zzzzzzzzzzzz/spielwiese/node-1/data.json" 
 //#define MQTT_TOPIC        "hiveeyes/-------MQTT-CLIENT-ID-von-oben------/spielwiese/node-1/data.json"     //ggfs. beim Pfad beim Team von hiveeyes noch nachfragen.
 
-#if GSM_ENABLED
-
-  // Client für GSM hier aufrufen
-  TinyGsm modem(SerialAT);
-  TinyGsmClient client(modem);
-  TinyGsmClient clientMQTT(modem);
-
-#endif
 
 #if WIFI_ACTIVE
 
   WiFiClient client;
   WiFiClient clientMQTT;
 
+  // Setup the MQTT client class by passing in the WiFi client and MQTT server and login details
+  Adafruit_MQTT_Client mqtt(&clientMQTT, MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD);
+  
+  // Setup MQTT publishing handler
+  Adafruit_MQTT_Publish mqtt_publisher = Adafruit_MQTT_Publish(&mqtt, MQTT_TOPIC);
+
 #endif
-
-
-// Setup the MQTT client class by passing in the WiFi client and MQTT server and login details
-Adafruit_MQTT_Client mqtt(&clientMQTT, MQTT_BROKER, MQTT_PORT, MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD);
-
-// Setup MQTT publishing handler
-Adafruit_MQTT_Publish mqtt_publisher = Adafruit_MQTT_Publish(&mqtt, MQTT_TOPIC);
 
 #if WEIGHT
 
   #include <HX711.h>
-  #include <RunningMedian.h>  // http://playground.arduino.cc/Main/RunningMedian
+  //#include <RunningMedian.h>  // http://playground.arduino.cc/Main/RunningMedian
+
+  #if defined(ESP8266)
   
-  #define SCALE_DOUT_PIN_A D5 // DT
-  #define SCALE_SCK_PIN_A D3 // SCK
+    #define SCALE_DOUT_PIN_A D5 // DT
+    #define SCALE_SCK_PIN_A D3 // SCK
+  
+    #define SCALE_DOUT_PIN_B D2 // DT
+    #define SCALE_SCK_PIN_B D1 // SCK
 
-  #define SCALE_DOUT_PIN_B D2 // DT
-  #define SCALE_SCK_PIN_B D1 // SCK
+  #else
 
-  HX711 scale_A(SCALE_DOUT_PIN_A, SCALE_SCK_PIN_A);
-  HX711 scale_B(SCALE_DOUT_PIN_B, SCALE_SCK_PIN_B);
+    #define SCALE_DOUT_PIN_A 32 // DT
+    #define SCALE_SCK_PIN_A 33 // SCK
+  
+    #define SCALE_DOUT_PIN_B 34 // DT
+    #define SCALE_SCK_PIN_B 35 // SCK
+
+  #endif
 
   long AktuellesGewicht_A = 0;
   long AktuellesGewicht_B = 0;
@@ -207,8 +158,8 @@ Adafruit_MQTT_Publish mqtt_publisher = Adafruit_MQTT_Publish(&mqtt, MQTT_TOPIC);
   float GewichtEinzelmessung_B;
 
   // create RunningMedian object with 10 readings
-  RunningMedian GewichtSamples_A = RunningMedian(10);
-  RunningMedian GewichtSamples_B = RunningMedian(10);
+  //RunningMedian GewichtSamples_A = RunningMedian(10);
+  //RunningMedian GewichtSamples_B = RunningMedian(10);
 
 #endif
 
@@ -281,21 +232,27 @@ void setup() {
   
 Serial.begin(115200);
 
+#if WEIGHT
+    
+  setup_weight();
+
+#endif
+
 #if WIFI_ACTIVE
 
   Serial.println("Booting Wifi Mode ");
 
   // Start Wifi Manager to connect
-  WiFiManager wifiManager;
+  //!"§WiFiManager wifiManager;
 
-  wifiManager.setConfigPortalTimeout(60);
-  wifiManager.autoConnect("AutoConnectAP");
+  //wifiManager.setConfigPortalTimeout(60);
+  //wifiManager.autoConnect("AutoConnectAP");
 
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("Connection Failed! Rebooting...");
 
     Serial.println("ESP8266 in sleep for 1 min mode");
-    ESP.deepSleep(60 * 1000000, WAKE_RF_DEFAULT);
+    //!"§ESP.deepSleep(60 * 1000000, WAKE_RF_DEFAULT);
     delay(100);
 
   }
@@ -327,8 +284,6 @@ Serial.begin(115200);
 
 #endif
 
-setup_weight();
-
 setup_tempsensor();
 
 }
@@ -339,7 +294,7 @@ void loop() {
     return;
   }
 
-  read_weight();
+  //!"§read_weight();
 
   read_tempsensor();
 
@@ -360,7 +315,7 @@ void loop() {
   #endif
 
   #if DEEPSLEEP_ENABLED
-      ESP.deepSleep(sleepTimeS * 1000000, WAKE_RF_DEFAULT);
+      //!"§ESP.deepSleep(sleepTimeS * 1000000, WAKE_RF_DEFAULT);
       delay(100);
   #endif
 
@@ -371,26 +326,31 @@ void loop() {
 
 void setup_weight() {
 
-  #if WEIGHT
-    // Waage A Setup
-    scale_A.set_offset(Taragewicht_A);
-    scale_A.set_scale(Skalierung_A);
-  
-    // Waage B Setup
+  // scale A Setup
+  HX711 scale_A;
+  scale_A.begin(SCALE_DOUT_PIN_A, SCALE_SCK_PIN_A);
+  scale_A.set_offset(Taragewicht_A);
+  scale_A.set_scale(Skalierung_A);
+
+  #if TWOSCALES
+
+    // scale B Setup
+    HX711 scale_B;
+    scale_B.begin(SCALE_DOUT_PIN_B, SCALE_SCK_PIN_B);
     scale_B.set_offset(Taragewicht_B);
     scale_B.set_scale(Skalierung_B);
-  #endif
 
+  #endif
 }
 
-
+/*
 void read_weight() {
 
   #if WEIGHT
   
     //clearRunningMedian Sample
-    GewichtSamples_A.clear();
-    GewichtSamples_B.clear();
+    //GewichtSamples_A.clear();
+    //GewichtSamples_B.clear();
 
     // read x times weight and take median
     // do this till running median sample is full
@@ -436,131 +396,10 @@ void read_weight() {
     } 
   #endif
 }
-
-
-void gsm_setup() {
-
-#if GSM_ENABLED
-
-  // Set GSM module baud rate
-  SerialAT.begin(9600);
-  delay(3000);
-
-  // Restart takes quite some time
-  // To skip it, call init() instead of restart()
-  Serial.println("Initializing modem...");
-  modem.restart();
-
-  // Unlock your SIM card with a PIN - falls SIM mit PIN belegt ist hier die PIN hinterlegen.
-  // modem.simUnlock("1234");
-
-#endif
-
-}
-
-void gsm_connect() {
-
-#if GSM_ENABLED
-
-  Serial.print("Waiting for network...");
-  if (!modem.waitForNetwork()) {
-    Serial.println(" fail");
-    delay(10000);
-    return;
-  }
-  Serial.println("Connected to mobil network");
-
-  Serial.print("GPRS Connecting to ");
-  Serial.print(apn);
-  if (!modem.gprsConnect(apn, user, pass)) {
-    Serial.println(" fail");
-    delay(10000);
-
-  // Falls die Verbindung mit dem GSM & GPRS Netz nicht klappt, legt sich der der ESP schlafen und wir starten im Anschluß von vorn.
-  // GSM Modem stoppen
-
-     gsm_disconnect();
-
-    // Sleep für 60 Sekunden
-
-    ESP.deepSleep(60 * 1000000, WAKE_RF_DEFAULT);
-    delay(100);
-    
-    return;
-  }
-  Serial.println("GPRS Connection established");
-
-#endif
-
-}
-
-
-void gsm_info() {
-
-#if GSM_ENABLED
-
-  gsm_csq = modem.getSignalQuality();
-  volt_level = modem.getBattPercent();
-  voltage = modem.getBattVoltage() / 1000.0F;
-
-  Serial.println();
-  Serial.println("Signal Qualität");
-  Serial.println(gsm_csq);
-
-  Serial.println("Batterie Level ");
-  Serial.println(volt_level);
-
-  Serial.println("Batterie Level ");
-  Serial.println(voltage);
-
-#endif
-
-}
+*/
 
 
 
-void gsm_disconnect() {
-
-#if GSM_ENABLED
-
-  // For dem Sleep  - Verbindung kappen
-  Serial.println("GPRS Disconnect");
-  modem.gprsDisconnect();
-
-  // For dem Sleep  - Modem RadioOFF schalten 
-  Serial.println("GSM Radio Off ");
-  modem.radioOff();
-
-  delay(1000);
-
-  Serial.println("GSM Sleep Mode 2 Enablen ");
-  gsm_SleepMode2On();
-
-#endif
-
-}
-
-void gsm_SleepMode2On() {
-
-#if GSM_ENABLED
-
-  modem.sendAT(GF("+CSCLK=2"));
-  delay(1000);
-
-#endif
-
-}
-
-void gsm_SleepModeOff() {
-
-#if GSM_ENABLED
-
-  modem.sendAT(GF("+CSCLK=0"));
-  delay(1000);
-
-#endif
-
-}
 
 bool mqtt_connect() {
 
@@ -594,7 +433,7 @@ bool mqtt_connect() {
 
       // Sleep für 60 Sekunden.
 
-          ESP.deepSleep(60 * 1000000, WAKE_RF_DEFAULT);
+          //!"§ESP.deepSleep(60 * 1000000, WAKE_RF_DEFAULT);
           delay(100);
 
       
@@ -769,13 +608,14 @@ void transmit_readings() {
 
   // Build JSON object containing sensor readings
   // TODO: How many data points actually fit into this?
-  StaticJsonBuffer<1024> jsonBuffer;
+  //StaticJsonBuffer<1024> jsonBuffer;
 
 
   // Create telemetry payload by manually mapping sensor readings to telemetry field names.
   // Note: For more advanced use cases, please have a look at the TerkinData C++ library
   //       https://hiveeyes.org/docs/arduino/TerkinData/README.html
-  JsonObject& json_data = jsonBuffer.createObject();
+//  JsonObject json_data = jsonBuffer.createObject();
+  JsonObject json_data;
 
   #if WUNDERGROUND
     json_data["WXD_Temp"]        = currentTemp;
@@ -804,14 +644,17 @@ void transmit_readings() {
   json_data["voltage"]           = voltage;
 
   // Debugging
-  json_data.printTo(Serial);
+  //json_data.printTo(Serial);
+  serializeJson(json_data, Serial);
 
 
   // Serialize data
-  int json_length = json_data.measureLength();
+ // int json_length = json_data.measureLength();
+  int json_length = measureJson(json_data);
   char payload[json_length + 1];
-  json_data.printTo(payload, sizeof(payload));
-
+  //json_data.printTo(payload, sizeof(payload));
+  //!"§serializeJson(json_data, payload);
+  
   // Publish data
   // TODO: Refactor to TerkinTelemetry
   if (mqtt_publisher.publish(payload)) {

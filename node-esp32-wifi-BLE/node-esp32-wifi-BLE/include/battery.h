@@ -1,0 +1,1 @@
+int readBatteryLevel(int pin, int zero);
