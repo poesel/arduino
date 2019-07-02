@@ -6,13 +6,7 @@
 #include <battery.h>
 #include <scale.h>
 
-
-// comment in options you need
-#define WIFI             // enables webserver and MQTT
-//#define BLE             // enable BLE functionality
-#define SCALE            // if scale is attached
-//#define TWOSCALES       // if another scale for a different hive is attached
-#define BATTERYLEVEL     // measure battery level
+#include <defines.h>
 
 //Variables for battery level
 static const int BatteryPin = 33;
@@ -42,8 +36,8 @@ void setup() {
     iot.configuration.set("OTAActive", "true");
 
     #ifdef WIFI
+      setup_webpage(iot);
       iot.begin();
-      setup_webpage();
     #endif
     #ifdef BATTERYLEVEL
       pinMode(BatteryPin, INPUT);
@@ -57,12 +51,8 @@ void setup() {
 
 void loop() {
 
-  Serial.println("Zero:");
-  Serial.println(batteryZero);
   #ifdef BATTERYLEVEL
     BatteryLevel = readBatteryLevel(BatteryPin, batteryZero);
-    Serial.println("Level:");
-    Serial.println(BatteryLevel);
   #endif
   #ifdef SCALE
     LoadCell.begin();

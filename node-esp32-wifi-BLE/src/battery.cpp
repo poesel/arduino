@@ -1,3 +1,4 @@
+#include <defines.h>
 #include <arduino.h>
 
 int readBatteryLevel(int pin, int zero) {

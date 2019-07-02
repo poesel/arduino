@@ -1,3 +1,4 @@
+#include <defines.h>
 #include <HX711_ADC.h>
 #include <EEPROM.h>
 

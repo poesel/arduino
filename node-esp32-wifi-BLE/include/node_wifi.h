@@ -1,1 +1,1 @@
-void setup_webpage();
+void setup_webpage(Basecamp & iot);
