@@ -14,9 +14,12 @@ void setup_webpage (Basecamp & iot) {
             iot.web..setInterfaceElementAttribute("scaleDisplay2", "readonly", "true");
         #endif
     #endif
+/*
     #ifdef BATTERYLEVEL
+        iot.configuration.set("battery01", String(BatteryLevel));
+        iot.configuration.save();
         iot.web.addInterfaceElement("batteryDisplay", "input", "Akku: ", "#configform", "battery01");
         iot.web.setInterfaceElementAttribute("batteryDisplay", "readonly", "true");
     #endif
-
+*/
 }
