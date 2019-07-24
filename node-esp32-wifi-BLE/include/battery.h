@@ -1,1 +1,1 @@
-int readBatteryLevel(int pin, int zero);
+uint8_t readBatteryLevel(int pin, int zero);
